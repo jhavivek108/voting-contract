@@ -9,24 +9,32 @@ pub mod vote {
     use super::*;
 
     pub fn register_candidate(ctx: Context<RegisterCandidate>, name: String) -> Result<()> {
+        require!(name.len() > 0, CandidateError::ShortName);
+        require!(name.len() <= 20, CandidateError::LongName);
+
         let candidate: &mut _= &mut ctx.accounts.candidate;
         candidate.set_inner(Candidate {
             c_name: name,
             vote_count: 0,
             candidate_id: ctx.accounts.owner.key(),
         });
+        msg!("Candidate is registered successfully"); 
 
         Ok(())
     }
 
     pub fn register_voter(ctx: Context<RegisterVoter>, name: String ) -> Result<()> { 
+        require!(name.len() > 0, VoterError::ShortName);
+        require!(name.len() <= 20, VoterError::LongName);
+
         let voter: &mut _= &mut ctx.accounts.voter;
         voter.set_inner(Voter {
             v_name: name,
             is_voted: false,
             voter_id: ctx.accounts.owner.key(),
         });
-         
+        msg!("Voter is registered successfully");  
+
         Ok(())
     }
 
@@ -34,15 +42,17 @@ pub mod vote {
         let voter: &mut _= &mut ctx.accounts.voter;
         let candidate: &mut _= &mut ctx.accounts.candidate;
 
-        require!(ctx.accounts.voter_signer.key() == voter.voter_id, VoteError::UnauthorizedVoter);
-        require!(voter.is_voted== false, VoteError::AlreadyVoted);
+        require!(ctx.accounts.voter_signer.key() == voter.voter_id, VoterError::UnauthorizedVoter);
+        require!(voter.is_voted== false, VoterError::AlreadyVoted);
+        require!(candidate.vote_count>= 0, CandidateError::CandidateNotFound);
         
-        cnadidate.vote_count += 1;
+        candidate.vote_count += 1;
         voter.is_voted = true;
+
+        msg!("Voter {} has voted for candidate {}", voter.voter_id, candidate.candidate_id);
+
         Ok(())
     }
-
-
 
 
     #[account]
@@ -106,12 +116,25 @@ pub mod vote {
     }
 
     #[error_code]
+    pub enum CandidateError {
+        #[msg("Name is too short.")]
+        ShortName,
+        #[msg("Name is too long.")]
+        LongName,
+        #[msg("Candidate not found.")]
+        CandidateNotFound,
+    }
 
+    #[error_code]
     pub enum VoterError {
         #[msg("You are not authorized to vote.")]
         UnauthorizedVoter,
         #[msg("You have already voted.")]
         AlreadyVoted,
+        #[msg("Name is too short.")]
+        ShortName,
+        #[msg("Name is too long.")]
+        LongName,
     }
 
 }
